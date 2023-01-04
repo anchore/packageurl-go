@@ -374,7 +374,20 @@ func validQualifierKey(key string) bool {
 // pathEscape Make any purl type-specific adjustments to the url encoding.
 // See https://github.com/package-url/purl-spec/blob/master/PURL-SPECIFICATION.rst#character-encoding
 func pathEscape(s string) string {
+	escapeCount := 0
+	for _, c := range s {
+		switch {
+		case c == '@' || c == '?' || c == '#' || c == ' ':
+			escapeCount += 1
+		case c > unicode.MaxASCII:
+			escapeCount += 3
+		}
+	}
+	if escapeCount == 0 {
+		return s
+	}
 	var t strings.Builder
+	t.Grow(len(s) + (escapeCount * 3))
 	for _, c := range s {
 		switch {
 		case c == '@':

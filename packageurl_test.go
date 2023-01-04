@@ -333,6 +333,11 @@ func TestEncoding(t *testing.T) {
 			expected: "pkg:type/>A\"space/name@version?key=value#sub/path",
 		},
 		{
+			name:     "unicode characters are encoded",
+			input:    "pkg:type/ē/name@version?key=value#sub/path",
+			expected: "pkg:type/%C4%93/name@version?key=value#sub/path",
+		},
+		{
 			name:     "pre-encoded namespace segment is unchanged",
 			input:    "pkg:type/name/spac%20e/name@version?key=value#sub/path",
 			expected: "pkg:type/name/spac%20e/name@version?key=value#sub/path",
