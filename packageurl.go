@@ -380,7 +380,7 @@ func pathEscape(s string) string {
 		switch {
 		case c == '@':
 			t.WriteString("%40")
-		case c == '?' || c == '#' || c == ' ' || c > unicode.MaxASCII:
+		case c == '?' || c == '#' || c == ' ' || c == '+' || c > unicode.MaxASCII:
 			t.WriteString(url.PathEscape(string(c)))
 		default:
 			t.WriteRune(c)
