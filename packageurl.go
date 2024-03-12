@@ -384,6 +384,10 @@ func pathEscape(s string) string {
 		switch {
 		case c == '@':
 			t.WriteString("%40")
+		case c == '+':
+			// url.PathEscape doesn't encode '+' since it's a valid query escape character for ' ' in application/x-www-form-urlencoded, but '+' is a
+			// valid character in semver so we don't want it to be unintentionally unescaped as ' ' by downstream parsers of the purl.
+			t.WriteString("%2B")
 		case c == '?' || c == '#' || c == ' ' || c > unicode.MaxASCII:
 			t.WriteString(url.PathEscape(string(c)))
 		default:

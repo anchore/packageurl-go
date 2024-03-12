@@ -354,8 +354,8 @@ func TestEncoding(t *testing.T) {
 		},
 		{
 			name:     "pre-encoded version is unchanged",
-			input:    "pkg:type/name/space/name@versio%20n?key=value#sub/path",
-			expected: "pkg:type/name/space/name@versio%20n?key=value#sub/path",
+			input:    "pkg:type/name/space/name@versio%20n%2Bbeta?key=value#sub/path",
+			expected: "pkg:type/name/space/name@versio%20n%2Bbeta?key=value#sub/path",
 		},
 		{
 			name:     "unencoded qualifier value is encoded",
