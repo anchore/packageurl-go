@@ -78,6 +78,8 @@ var (
 	TypeHackage = "hackage"
 	// TypeHex is a pkg:hex purl.
 	TypeHex = "hex"
+	// TypeOTP is a pkg:otp purl.
+	TypeOTP = "otp"
 	// TypeMaven is a pkg:maven purl.
 	TypeMaven = "maven"
 	// TypeNPM is a pkg:npm purl.
