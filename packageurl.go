@@ -92,8 +92,8 @@ var (
 	TypePub = "pub"
 	// TypePyPi is a pkg:pypi purl.
 	TypePyPi = "pypi"
-	// TypeLuaRock is a pkg:luarock purl.
-	TypeLuaRock = "luarock"
+	// TypeLuaRocs is a pkg:luarocks purl.
+	TypeLuaRocks = "luarocks"
 	// TypeRPM is a pkg:rpm purl.
 	TypeRPM = "rpm"
 	// TypeSwift is pkg:swift purl.
