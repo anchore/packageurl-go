@@ -50,6 +50,8 @@ var (
 	TypeAlpine = "apk"
 	// TypeBitbucket is a pkg:bitbucket purl.
 	TypeBitbucket = "bitbucket"
+	// TypeBitnami is a pkg:bitnami purl.
+	TypeBitnami = "bitnami"
 	// TypeCocoapods is a pkg:cocoapods purl.
 	TypeCocoapods = "cocoapods"
 	// TypeCargo is a pkg:cargo purl.
