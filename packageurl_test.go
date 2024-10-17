@@ -27,6 +27,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -55,7 +56,7 @@ type OrderedMap struct {
 
 // qualifiersMapPattern is used to parse the TestFixture "qualifiers" field to
 // ensure that it's a json object.
-var qualifiersMapPattern = regexp.MustCompile(`^\{.*\}$`)
+var qualifiersMapPattern = regexp.MustCompile(`(?ms)^\{.*\}$`)
 
 // UnmarshalJSON unmarshals the qualifiers field for a TestFixture. The
 // qualifiers field is given as a json object such as:
@@ -159,8 +160,16 @@ func TestFromStringExamples(t *testing.T) {
 				t.Logf("%s: incorrect version: wanted: '%s', got '%s'", tc.Description, tc.Version, p.Version)
 				t.Fail()
 			}
-			if !reflect.DeepEqual(p.Qualifiers, tc.Qualifiers()) {
-				t.Logf("%s: incorrect qualifiers: wanted: '%#v', got '%#v'", tc.Description, tc.Qualifiers(), p.Qualifiers)
+			want := tc.Qualifiers()
+			sort.Slice(want, func(i, j int) bool {
+				return want[i].Key < want[j].Key
+			})
+			got := p.Qualifiers
+			sort.Slice(got, func(i, j int) bool {
+				return got[i].Key < got[j].Key
+			})
+			if !reflect.DeepEqual(want, got) {
+				t.Logf("%s: incorrect qualifiers: wanted: '%#v', got '%#v'", tc.Description, want, p.Qualifiers)
 				t.Fail()
 			}
 
@@ -199,8 +208,9 @@ func TestToStringExamples(t *testing.T) {
 			continue
 		}
 		instance := packageurl.NewPackageURL(
-			tc.PackageType, tc.Namespace, tc.Name,
-			tc.Version, tc.Qualifiers(), tc.Subpath)
+			tc.PackageType, tc.Namespace, tc.Name, tc.Version,
+			// Use QualifiersFromMap so that the qualifiers have a defined order, which is needed for string comparisons
+			packageurl.QualifiersFromMap(tc.Qualifiers().Map()), tc.Subpath)
 		result := instance.ToString()
 
 		// NOTE: We create a purl with ToString and then load into a PackageURL
@@ -296,12 +306,275 @@ func TestQualifiersMapConversion(t *testing.T) {
 			t.Logf("qualifiers -> map conversion failed: got: %#v, wanted: %#v", mp, test.kvMap)
 			t.Fail()
 		}
+	}
+}
 
+func TestNameEscaping(t *testing.T) {
+	testCases := map[string]string{
+		"abc": "pkg:deb/abc",
+		// from the spec:
+		// the '/' used as type/namespace/name and subpath segments separator does not need to and must NOT be percent-encoded. It is unambiguous unencoded everywhere
+		// note: this is distinct from upstream, which does escape this case
+		"ab/c": "pkg:deb/ab/c",
+	}
+	for name, output := range testCases {
+		t.Run(name, func(t *testing.T) {
+			p := &packageurl.PackageURL{Type: "deb", Name: name}
+			if s := p.ToString(); s != output {
+				t.Fatalf("wrong escape. expected=%q, got=%q", output, s)
+			}
+		})
 	}
 
 }
 
-// TestEncoding verifies that a string representation parsed by FromString and
+func TestQualifierMissingEqual(t *testing.T) {
+	input := "pkg:npm/test-pkg?key"
+	want := packageurl.PackageURL{
+		Type:       "npm",
+		Name:       "test-pkg",
+		Qualifiers: packageurl.Qualifiers{},
+	}
+	got, err := packageurl.FromString(input)
+	if err != nil {
+		t.Fatalf("FromString(%s): unexpected error: %v", input, err)
+	}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("FromString(%s): want %q got %q", input, want, got)
+	}
+}
+
+func TestNormalize(t *testing.T) {
+	testCases := []struct {
+		name    string
+		input   packageurl.PackageURL
+		want    packageurl.PackageURL
+		wantErr bool
+	}{{
+		name: "type is case insensitive",
+		input: packageurl.PackageURL{
+			Type: "NpM",
+			Name: "pkg",
+		},
+		want: packageurl.PackageURL{
+			Type:       "npm",
+			Name:       "pkg",
+			Qualifiers: packageurl.Qualifiers{},
+		},
+	}, {
+		name: "type is manditory",
+		input: packageurl.PackageURL{
+			Name: "pkg",
+		},
+		wantErr: true,
+	}, {
+		name: "leading and traling / on namespace are trimmed",
+		input: packageurl.PackageURL{
+			Type:      "npm",
+			Namespace: "/namespace/org/",
+			Name:      "pkg",
+		},
+		want: packageurl.PackageURL{
+			Type:       "npm",
+			Namespace:  "namespace/org",
+			Name:       "pkg",
+			Qualifiers: packageurl.Qualifiers{},
+		},
+	}, {
+		name: "qualifiers with empty values are removed",
+		input: packageurl.PackageURL{
+			Type: "npm",
+			Name: "pkg",
+			Qualifiers: packageurl.Qualifiers{{
+				Key: "k1", Value: "v1",
+			}, {
+				Key: "k2", Value: "",
+			}, {
+				Key: "k3", Value: "v3",
+			}},
+		},
+		want: packageurl.PackageURL{
+			Type: "npm",
+			Name: "pkg",
+			Qualifiers: packageurl.Qualifiers{{
+				Key: "k1", Value: "v1",
+			}, {
+				Key: "k3", Value: "v3",
+			}},
+		},
+	}, {
+		name: "qualifiers are sorted by key",
+		input: packageurl.PackageURL{
+			Type: "npm",
+			Name: "pkg",
+			Qualifiers: packageurl.Qualifiers{{
+				Key: "k3", Value: "v3",
+			}, {
+				Key: "k2", Value: "v2",
+			}, {
+				Key: "k1", Value: "v1",
+			}},
+		},
+		want: packageurl.PackageURL{
+			Type: "npm",
+			Name: "pkg",
+			Qualifiers: packageurl.Qualifiers{{
+				Key: "k1", Value: "v1",
+			}, {
+				Key: "k2", Value: "v2",
+			}, {
+				Key: "k3", Value: "v3",
+			}},
+		},
+	}, {
+		name: "duplicate keys are invalid",
+		input: packageurl.PackageURL{
+			Type: "npm",
+			Name: "pkg",
+			Qualifiers: packageurl.Qualifiers{{
+				Key: "k1", Value: "v1",
+			}, {
+				Key: "k1", Value: "v2",
+			}},
+		},
+		wantErr: true,
+	}, {
+		name: "keys are made lower case",
+		input: packageurl.PackageURL{
+			Type: "npm",
+			Name: "pkg",
+			Qualifiers: packageurl.Qualifiers{{
+				Key: "KeY", Value: "v1",
+			}},
+		},
+		want: packageurl.PackageURL{
+			Type: "npm",
+			Name: "pkg",
+			Qualifiers: packageurl.Qualifiers{{
+				Key: "key", Value: "v1",
+			}},
+		},
+	}, {
+		name: "name is required",
+		input: packageurl.PackageURL{
+			Type: "npm",
+		},
+		wantErr: true,
+	}, {
+		name: "leading and traling / on subpath are trimmed",
+		input: packageurl.PackageURL{
+			Type:    "npm",
+			Name:    "pkg",
+			Subpath: "/sub/path/",
+		},
+		want: packageurl.PackageURL{
+			Type:       "npm",
+			Name:       "pkg",
+			Qualifiers: packageurl.Qualifiers{},
+			Subpath:    "sub/path",
+		},
+	}, {
+		name: "'.' is an invalid subpath segment",
+		input: packageurl.PackageURL{
+			Type:    "npm",
+			Name:    "pkg",
+			Subpath: "/sub/./path/",
+		},
+		wantErr: true,
+	}, {
+		name: "'..' is an invalid subpath segment",
+		input: packageurl.PackageURL{
+			Type:    "npm",
+			Name:    "pkg",
+			Subpath: "/sub/../path/",
+		},
+		wantErr: true,
+	}, {
+		name: "'./' is a valid subpath prefix",
+		input: packageurl.PackageURL{
+			Type:    "npm",
+			Name:    "pkg",
+			Subpath: "./sub/path",
+		},
+		want: packageurl.PackageURL{
+			Type:       "npm",
+			Name:       "pkg",
+			Qualifiers: packageurl.Qualifiers{},
+			Subpath:    "./sub/path",
+		},
+	}, {
+		name: "'../' is a valid subpath prefix",
+		input: packageurl.PackageURL{
+			Type:    "npm",
+			Name:    "pkg",
+			Subpath: "../sub/path",
+		},
+		want: packageurl.PackageURL{
+			Type:       "npm",
+			Name:       "pkg",
+			Qualifiers: packageurl.Qualifiers{},
+			Subpath:    "../sub/path",
+		},
+	}, {
+		name: "known type namespace adjustments",
+		input: packageurl.PackageURL{
+			Type:      "npm",
+			Namespace: "NaMeSpAcE",
+			Name:      "pkg",
+		},
+		want: packageurl.PackageURL{
+			Type:       "npm",
+			Namespace:  "namespace",
+			Name:       "pkg",
+			Qualifiers: packageurl.Qualifiers{},
+		},
+	}, {
+		name: "known type name adjustments",
+		input: packageurl.PackageURL{
+			Type: "npm",
+			Name: "nAmE",
+		},
+		want: packageurl.PackageURL{
+			Type:       "npm",
+			Name:       "name",
+			Qualifiers: packageurl.Qualifiers{},
+		},
+	}, {
+		name: "known type version adjustments",
+		input: packageurl.PackageURL{
+			Type:    "huggingface",
+			Name:    "name",
+			Version: "VeRsIoN",
+		},
+		want: packageurl.PackageURL{
+			Type:       "huggingface",
+			Name:       "name",
+			Version:    "version",
+			Qualifiers: packageurl.Qualifiers{},
+		},
+	}}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := testCase.input
+			err := got.Normalize()
+			if err != nil && testCase.wantErr {
+				return
+			}
+			if err != nil && !testCase.wantErr {
+				t.Fatalf("Normalize(%s): unexpected error: %v", testCase.name, err)
+			}
+			if testCase.wantErr {
+				t.Fatalf("Normalize(%s): want error, got none", testCase.name)
+			}
+			if !reflect.DeepEqual(testCase.want, got) {
+				t.Fatalf("Normalize(%s):\nwant %#v\ngot %#v", testCase.name, testCase.want, got)
+			}
+		})
+	}
+}
+
+// TestEncoding verifies that a string representation parsed by FromString
 // and returned by ToString will have URL encoding set where required:
 // https://github.com/package-url/purl-spec#rules-for-each-purl-component
 // Note that this is not covered by test suite data verification since its
@@ -329,8 +602,13 @@ func TestEncoding(t *testing.T) {
 		},
 		{
 			name:     "characters are unencoded where allowed",
-			input:    "pkg:type/%3E%41%22space/name@version?key=value#sub/path",
-			expected: "pkg:type/>A\"space/name@version?key=value#sub/path",
+			input:    "pkg:type/%3E%41%22space/name@version?key=value!#sub/path",
+			expected: "pkg:type/>A\"space/name@version?key=value!#sub/path",
+		},
+		{
+			name:     "equals within version should be encoded",
+			input:    "pkg:type/space/name@ver=sion?key=value",
+			expected: "pkg:type/space/name@ver=sion?key=value",
 		},
 		{
 			name:     "pre-encoded namespace segment is unchanged",
@@ -377,6 +655,11 @@ func TestEncoding(t *testing.T) {
 			input:    "pkg:type/name/space/name@version?key=value#sub/pat%20h",
 			expected: "pkg:type/name/space/name@version?key=value#sub/pat%20h",
 		},
+		{
+			name:     "newline whitespace",
+			input:    "  \tpkg:type/name/space/name@5.2.0\r\n",
+			expected: "pkg:type/name/space/name@5.2.0",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -385,8 +668,9 @@ func TestEncoding(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if tc.expected != got.ToString() {
-				t.Fatalf("expected %s to parse as %s but got %s", tc.input, tc.expected, got.ToString())
+			gotStr := got.ToString()
+			if tc.expected != gotStr {
+				t.Fatalf("expected %s to parse as %s but got %s", tc.input, tc.expected, gotStr)
 			}
 		})
 	}

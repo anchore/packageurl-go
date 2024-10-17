@@ -4,7 +4,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.21.x, 1.22.x]
+        go-version: [1.21.x, 1.22.x, 1.23.x]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -17,6 +17,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Download test data
+        run: curl -L https://raw.githubusercontent.com/package-url/purl-spec/master/test-suite-data.json -o testdata/test-suite-data.json
+
       - name: Test go fmt
         run: test -z $(go fmt ./...)
 
@@ -27,3 +30,15 @@ jobs:
 
       - name: Test coverage
         run: go test -covermode atomic -coverprofile='profile.cov' ./...
+
+# this is only available from the upstream repo
+#      - name: Send coverage
+#        if: runner.os == 'Linux'
+#        env:
+#          COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        run: |
+#          go install github.com/mattn/goveralls@latest
+#          $(go env GOPATH)/bin/goveralls -coverprofile=profile.cov -service=github
+
+      - name: Fuzz tests
+        run: make fuzz
