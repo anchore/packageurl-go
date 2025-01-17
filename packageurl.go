@@ -497,15 +497,16 @@ func (p *PackageURL) Normalize() error {
 	return validCustomRules(*p)
 }
 
-// escape the given string in a purl-compatible way.
+// escape the given string in a purl-compatible way
+// Source: https://github.com/package-url/purl-spec/blob/master/PURL-SPECIFICATION.rst#character-encoding
 func escape(s string) string {
-    // for compatibility with other implementations and the purl-spec, we want to escape all
-    // characters, which is what "QueryEscape" does. The issue with QueryEscape is that it encodes
-    // " " (space) as "+", which is valid in a query, but invalid in a path (see
-    // https://stackoverflow.com/questions/2678551/when-should-space-be-encoded-to-plus-or-20) for
-    // context).
-    // To work around that, we replace the "+" signs with the path-compatible "%20".
-    return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
+	// for compatibility with other implementations and the purl-spec, we want to escape all
+	// characters, which is what "QueryEscape" does. The issue with QueryEscape is that it encodes
+	// " " (space) as "+", which is valid in a query, but invalid in a path (see
+	// https://stackoverflow.com/questions/2678551/when-should-space-be-encoded-to-plus-or-20) for
+	// context).
+	// To work around that, we replace the "+" signs with the path-compatible "%20".
+	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
 }
 
 func separateNamespaceNameVersion(path string) (ns, name, version string, err error) {
