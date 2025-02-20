@@ -672,6 +672,11 @@ func TestEncoding(t *testing.T) {
 			input:    "  \tpkg:type/name/space/name@5.2.0\r\n",
 			expected: "pkg:type/name/space/name@5.2.0",
 		},
+		{
+			name:     "plus character not encoded to space",
+			input:    "pkg:type/name@1.0?param=some+thing+with+plus",
+			expected: "pkg:type/name@1.0?param=some%2Bthing%2Bwith%2Bplus",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
