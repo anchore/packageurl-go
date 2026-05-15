@@ -13,6 +13,9 @@ mise.toml
 .tool
 .tmp
 .task
+.env
+.make/.make
+profile.cov
 
 # release info
 /CHANGELOG.md
