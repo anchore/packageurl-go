@@ -195,6 +195,7 @@ var (
 	TypeEbuild      = "ebuild"
 	TypePuppet      = "puppet"
 	TypeSourceforge = "sourceforge"
+	TypeSpack       = "spack"
 	TypeSublime     = "sublime"
 	TypeTerraform   = "terraform"
 	TypeVagrant     = "vagrant"
@@ -248,6 +249,7 @@ var (
 		TypeEbuild:      {},
 		TypePuppet:      {},
 		TypeSourceforge: {},
+		TypeSpack:       {},
 		TypeSublime:     {},
 		TypeTerraform:   {},
 		TypeVagrant:     {},
