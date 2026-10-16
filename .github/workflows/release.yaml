@@ -60,7 +60,7 @@ jobs:
           persist-credentials: true # needed for pushing a tag
 
       # setup checkout, go, go-make, binny, and cache go modules
-      - uses: anchore/go-make/.github/actions/setup@383ef7852b8ae43a30f424896b52479186d2ea4d # v0.1.0
+      - uses: anchore/go-make/.github/actions/setup@9eb7f3a610b354fe29225a1bc8934a5a7ed4e07c # v0.9.2
 
       - name: Create release
         env:
