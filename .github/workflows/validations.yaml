@@ -18,7 +18,7 @@ jobs:
       contents: read
     steps:
       # setup checkout, go, go-make, binny, and cache go modules
-      - uses: anchore/go-make/.github/actions/setup@383ef7852b8ae43a30f424896b52479186d2ea4d # v0.1.0
+      - uses: anchore/go-make/.github/actions/setup@87a55e98f4e5e52a67d2cc5a3a0365070a380f65 # v0.9.4
 
       - name: Run static analysis
         run: make static-analysis
@@ -31,7 +31,7 @@ jobs:
       contents: read
     steps:
       # setup checkout, go, go-make, binny, and cache go modules
-      - uses: anchore/go-make/.github/actions/setup@383ef7852b8ae43a30f424896b52479186d2ea4d # v0.1.0
+      - uses: anchore/go-make/.github/actions/setup@87a55e98f4e5e52a67d2cc5a3a0365070a380f65 # v0.9.4
 
       - name: Download test data
         run: curl -L https://raw.githubusercontent.com/package-url/purl-spec/1951d217bde29590a73f075db4ab71cc00011459/test-suite-data.json -o testdata/test-suite-data.json
